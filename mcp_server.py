@@ -26,9 +26,9 @@ from typing import Optional
 from mcp.server.fastmcp import FastMCP
 from pydantic import BaseModel, Field
 
-from .vector_store import VectorStoreManager
-from .state_manager import PipelineState
-from .pipeline import run_pipeline
+from vector_store import VectorStoreManager
+from state_manager import PipelineState
+from pipeline import run_pipeline
 
 logger = logging.getLogger(__name__)
 

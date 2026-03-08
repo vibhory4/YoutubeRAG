@@ -30,7 +30,7 @@ import json
 import logging
 import sys
 
-from src.config import config
+from config import config
 
 
 def setup_logging():
@@ -47,7 +47,7 @@ def setup_logging():
 
 def cmd_index(args):
     """Index a YouTube channel."""
-    from src.pipeline import run_pipeline
+    from pipeline import run_pipeline
 
     print(f"Indexing channel: {args.channel}")
     if args.limit:
@@ -74,7 +74,7 @@ def cmd_index(args):
 
 def cmd_query(args):
     """Query the knowledge base."""
-    from src.vector_store import VectorStoreManager
+    from vector_store import VectorStoreManager
 
     store = VectorStoreManager()
     results = store.query(
@@ -104,7 +104,7 @@ def cmd_query(args):
 
 def cmd_scheduler(args):
     """Start the auto-update scheduler."""
-    from src.scheduler import start_scheduler
+    from scheduler import start_scheduler
 
     interval = args.interval or config.update_interval_minutes
     start_scheduler(interval_minutes=interval)
@@ -112,7 +112,7 @@ def cmd_scheduler(args):
 
 def cmd_mcp(args):
     """Start the MCP server."""
-    from src.mcp_server import mcp
+    from mcp_server import mcp
 
     print("Starting YouTube RAG MCP Server...")
     print("Configure in Claude Desktop's claude_desktop_config.json")
@@ -121,8 +121,8 @@ def cmd_mcp(args):
 
 def cmd_status(args):
     """Show pipeline status."""
-    from src.state_manager import PipelineState
-    from src.vector_store import VectorStoreManager
+    from state_manager import PipelineState
+    from vector_store import VectorStoreManager
 
     state = PipelineState()
     summary = state.get_summary()
@@ -155,7 +155,7 @@ def cmd_status(args):
 
 def cmd_channels(args):
     """List all tracked channels."""
-    from src.state_manager import PipelineState
+    from state_manager import PipelineState
 
     state = PipelineState()
     channels = state.get_tracked_channels()

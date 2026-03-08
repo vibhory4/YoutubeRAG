@@ -13,9 +13,9 @@ from datetime import datetime
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from .config import config
-from .pipeline import run_pipeline
-from .state_manager import PipelineState
+from config import config
+from pipeline import run_pipeline
+from state_manager import PipelineState
 
 logger = logging.getLogger(__name__)
 

@@ -7,8 +7,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from .config import config
-from .document_cleaner import CleanedDocument
+from config import config
+from document_cleaner import CleanedDocument
 
 logger = logging.getLogger(__name__)
 
