@@ -55,13 +55,17 @@ Orchestrated as a **LangGraph StateGraph** in [pipeline.py](pipeline.py). The gr
 | [document_cleaner.py](document_cleaner.py) | Removes filler words/brackets, reconstructs paragraphs from auto-captions |
 | [vector_store.py](vector_store.py) | ChromaDB CRUD; chunks text with `RecursiveCharacterTextSplitter`, upserts with deterministic IDs |
 | [state_manager.py](state_manager.py) | JSON state at `data/pipeline_state.json` tracking indexed video IDs per channel |
-| [mcp_server.py](mcp_server.py) | FastMCP server exposing 5 tools: query, index, list, stats, delete |
+| [channel_agent.py](channel_agent.py) | `ChannelAgent` class — wraps `gpt-4o-mini` with persona system prompt + RAG tool call loop; persists sessions to `data/sessions/` |
+| [persona_builder.py](persona_builder.py) | Samples transcripts → calls `gpt-4o-mini` → writes `data/personas/{handle}.json`; called at index time by pipeline |
+| [mcp_server.py](mcp_server.py) | FastMCP server exposing 7 tools: query, index, list, stats, delete, get_channel_agent, chat_with_channel_agent |
 | [config.py](config.py) | `@dataclass` config with env-var overrides; creates `data/` and `logs/` dirs on import |
 
 ### Persistence
 
 - `data/chroma_db/` — ChromaDB SQLite + HNSW index (per-channel collections)
 - `data/pipeline_state.json` — tracked channels and their indexed video IDs
+- `data/personas/{handle}.json` — creator persona profiles built by `persona_builder.py`
+- `data/sessions/{handle}.json` — per-channel conversation history for `ChannelAgent`
 - `logs/pipeline.log` — application logs
 
 ### Incremental Indexing
@@ -71,6 +75,14 @@ Orchestrated as a **LangGraph StateGraph** in [pipeline.py](pipeline.py). The gr
 ### Embeddings
 
 Uses `all-MiniLM-L6-v2` via `SentenceTransformerEmbeddingFunction` — no external API needed. Downloads on first run.
+
+### Channel Agent & Persona
+
+`persona_builder.build_and_save_persona()` is called during indexing (inside `pipeline.py`'s ingest node). It samples up to 20 cleaned documents and calls `gpt-4o-mini` to extract a creator profile (tone, topics, phrases, summary).
+
+`ChannelAgent` in `channel_agent.py` uses that persona as a system prompt and exposes a single `search_videos` OpenAI tool that calls `VectorStoreManager.query()`. It runs up to 3 tool-call loops per user turn and keeps a sliding window of 20 messages. Sessions are written to `data/sessions/{handle}.json`.
+
+**Requires `OPENAI_API_KEY`** in `.env` for persona building and agent chat.
 
 ### MCP Integration
 
