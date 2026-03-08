@@ -53,3 +53,12 @@ def test_summary_aggregates_counts(tmp_path):
 
     raw = json.loads((tmp_path / "state.json").read_text())
     assert raw["last_updated"] is not None
+
+
+# ──────────────────────────────────────────
+# Coverage gap tests (P0)
+# ──────────────────────────────────────────
+
+def test_get_indexed_video_ids_unknown_channel(tmp_path):
+    state = PipelineState(state_file=str(tmp_path / "state.json"))
+    assert state.get_indexed_video_ids("@unknown") == set()

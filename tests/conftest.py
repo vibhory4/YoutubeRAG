@@ -59,3 +59,30 @@ class FakeClient:
             raise RuntimeError("delete failed")
         self.deleted.append(name)
         self.collections.pop(name, None)
+
+
+# ──────────────────────────────────────────
+# Shared factory helpers
+# ──────────────────────────────────────────
+
+def make_cleaned_doc(video_id="v1", title="T", text="word ", repeat=50):
+    """Return a CleanedDocument for use in persona/agent/integration tests."""
+    from document_cleaner import CleanedDocument
+    body = text * repeat
+    return CleanedDocument(video_id, title, "@ch", f"https://youtu.be/{video_id}", body, repeat, 1, {})
+
+
+def make_session_file(tmp_path, session_id, channel_input, messages=None):
+    """Write a valid session JSON file and return its Path."""
+    import json
+    path = tmp_path / f"{session_id}.json"
+    path.write_text(json.dumps({"channel_input": channel_input, "messages": messages or []}))
+    return path
+
+
+def make_raising_class(exc_type=RuntimeError, msg="boom"):
+    """Return a class whose __init__ raises exc_type(msg). Useful for dependency-injection tests."""
+    class _Raise:
+        def __init__(self, *a, **kw):
+            raise exc_type(msg)
+    return _Raise

@@ -139,3 +139,14 @@ def test_get_stats(monkeypatch):
     stats = mgr.get_stats("@a")
     assert stats["total_chunks"] == 7
     assert stats["total_videos"] == 2
+
+
+# ──────────────────────────────────────────
+# Coverage gap tests (P0)
+# ──────────────────────────────────────────
+
+def test_list_collections_skips_falsy_name(monkeypatch):
+    mgr, _ = _make_manager(monkeypatch)
+    # Return a collection object whose .name is None — should be skipped
+    mgr.client.list_collections = lambda: [type("C", (), {"name": None})()]
+    assert mgr.list_collections() == []

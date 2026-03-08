@@ -121,3 +121,74 @@ def test_main_without_command_prints_help(monkeypatch, capsys):
     main.main()
     out = capsys.readouterr().out
     assert "usage:" in out.lower()
+
+
+# ──────────────────────────────────────────
+# Coverage gap tests (P0)
+# ──────────────────────────────────────────
+
+def test_setup_logging_non_default_level(monkeypatch, tmp_path):
+    # basicConfig is idempotent once handlers exist; just verify the function
+    # runs without raising — the important thing is line 38 (getattr call) is exercised.
+    monkeypatch.setattr(main.config, "log_level", "DEBUG")
+    monkeypatch.setattr(main.config, "log_file", str(tmp_path / "test.log"))
+    main.setup_logging()
+
+
+def test_cmd_status_shows_channel_info(monkeypatch, capsys):
+    class DummyState:
+        def get_summary(self):
+            return {
+                "total_channels": 1,
+                "total_videos_indexed": 3,
+                "last_updated": "2026-01-01",
+                "channels": {
+                    "@abc": {"videos_indexed": 3, "last_checked": "2026-01-01"},
+                },
+            }
+
+    class DummyStore:
+        def list_collections(self):
+            return []
+
+    monkeypatch.setitem(__import__("sys").modules, "state_manager", type("M", (), {"PipelineState": DummyState}))
+    monkeypatch.setitem(__import__("sys").modules, "vector_store", type("M", (), {"VectorStoreManager": DummyStore}))
+    main.cmd_status(Namespace())
+    out = capsys.readouterr().out
+    assert "@abc" in out
+    assert "Videos: 3" in out
+
+
+def test_cmd_status_shows_vector_store_collections(monkeypatch, capsys):
+    class DummyState:
+        def get_summary(self):
+            return {
+                "total_channels": 0,
+                "total_videos_indexed": 0,
+                "last_updated": None,
+                "channels": {},
+            }
+
+    class DummyStore:
+        def list_collections(self):
+            return [{"name": "col1", "document_count": 10}]
+
+    monkeypatch.setitem(__import__("sys").modules, "state_manager", type("M", (), {"PipelineState": DummyState}))
+    monkeypatch.setitem(__import__("sys").modules, "vector_store", type("M", (), {"VectorStoreManager": DummyStore}))
+    main.cmd_status(Namespace())
+    out = capsys.readouterr().out
+    assert "col1" in out
+    assert "10 chunks" in out
+
+
+def test_main_dispatches_subcommand(monkeypatch, capsys):
+    class DummyState:
+        def get_tracked_channels(self):
+            return []
+
+    monkeypatch.setattr("sys.argv", ["main.py", "channels"])
+    monkeypatch.setitem(__import__("sys").modules, "state_manager", type("M", (), {"PipelineState": DummyState}))
+    monkeypatch.setattr(main.config, "log_file", "/dev/null")
+    main.main()
+    out = capsys.readouterr().out
+    assert "No channels tracked yet" in out

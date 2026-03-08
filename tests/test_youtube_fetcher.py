@@ -93,3 +93,28 @@ def test_get_video_infos_filters_existing_and_marks_missing(monkeypatch):
     assert infos[0].video_id == "v2"
     assert infos[0].transcript == "text"
     assert infos[0].error is None
+
+
+# ──────────────────────────────────────────
+# Coverage gap tests (P0)
+# ──────────────────────────────────────────
+
+def test_extract_channel_identifier_fallback():
+    # Bare string that is not a URL, not @handle, not a 24-char UC... channel ID
+    result = yf.extract_channel_identifier("some-channel-name")
+    assert result == {"channel_url": "some-channel-name"}
+
+
+def test_get_video_infos_transcript_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        yf,
+        "fetch_channel_videos",
+        lambda channel_input, limit=None: [
+            {"videoId": "v1", "title": "A", "publishedTimeText": "p1", "viewCountText": "c1"},
+        ],
+    )
+    monkeypatch.setattr(yf, "fetch_transcript", lambda vid: None)
+
+    infos = yf.get_video_infos("@abc")
+    assert len(infos) == 1
+    assert infos[0].error == "Transcript unavailable"
