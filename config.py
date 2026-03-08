@@ -18,6 +18,8 @@ class Config:
     chroma_persist_dir: str = str(BASE_DIR / "data" / "chroma_db")
     state_file: str = str(BASE_DIR / "data" / "pipeline_state.json")
     log_file: str = str(BASE_DIR / "logs" / "pipeline.log")
+    sessions_dir: str = str(BASE_DIR / "data" / "sessions")
+    personas_dir: str = str(BASE_DIR / "data" / "personas")
 
     # Embedding
     embedding_model: str = "all-MiniLM-L6-v2"
@@ -41,6 +43,8 @@ class Config:
         self.chroma_persist_dir = os.getenv("CHROMA_PERSIST_DIR", self.chroma_persist_dir)
         self.state_file = os.getenv("STATE_FILE", self.state_file)
         self.log_file = os.getenv("LOG_FILE", self.log_file)
+        self.sessions_dir = os.getenv("SESSIONS_DIR", self.sessions_dir)
+        self.personas_dir = os.getenv("PERSONAS_DIR", self.personas_dir)
         self.embedding_model = os.getenv("EMBEDDING_MODEL", self.embedding_model)
         self.chunk_size = int(os.getenv("CHUNK_SIZE", self.chunk_size))
         self.chunk_overlap = int(os.getenv("CHUNK_OVERLAP", self.chunk_overlap))
@@ -55,6 +59,8 @@ class Config:
         Path(self.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
         Path(self.state_file).parent.mkdir(parents=True, exist_ok=True)
         Path(self.log_file).parent.mkdir(parents=True, exist_ok=True)
+        Path(self.sessions_dir).mkdir(parents=True, exist_ok=True)
+        Path(self.personas_dir).mkdir(parents=True, exist_ok=True)
 
 
 config = Config()

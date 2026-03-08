@@ -46,6 +46,9 @@ class PipelineGraphState(TypedDict):
     # After ingestion
     ingestion_stats: dict
 
+    # After persona build
+    persona_built: bool
+
     # Overall
     status: str
     errors: list[str]
@@ -208,6 +211,26 @@ def ingest_to_vectorstore(state: PipelineGraphState) -> dict:
         }
 
 
+def build_persona_node(state: PipelineGraphState) -> dict:
+    """
+    Node 4: Build and persist a creator persona from the cleaned documents.
+
+    Non-fatal — a failure here does not abort the pipeline.
+    """
+    from persona_builder import build_and_save_persona
+
+    channel_input = state["channel_input"]
+    cleaned_docs = state.get("cleaned_docs", [])
+
+    logger.info(f"[PERSONA] Building persona for: {channel_input}")
+    try:
+        build_and_save_persona(channel_input, cleaned_docs)
+        return {"persona_built": True, "status": "persona_built"}
+    except Exception as e:
+        logger.error(f"[PERSONA] Build failed (non-fatal): {e}")
+        return {"persona_built": False}
+
+
 def should_continue_to_clean(state: PipelineGraphState) -> str:
     """Conditional edge: skip cleaning if no new videos found."""
     if state.get("new_video_count", 0) == 0:
@@ -230,9 +253,9 @@ def build_pipeline_graph() -> StateGraph:
     """
     Build the LangGraph pipeline:
 
-        START → discover_videos → clean_documents → ingest_to_vectorstore → END
-                      ↓ (no new)        ↓ (no docs)
-                     END               END
+        START → discover → clean → ingest → build_persona → END
+                  ↓ (no new)  ↓ (no docs)
+                 END          END
     """
     graph = StateGraph(PipelineGraphState)
 
@@ -240,6 +263,7 @@ def build_pipeline_graph() -> StateGraph:
     graph.add_node("discover", discover_videos)
     graph.add_node("clean", clean_documents)
     graph.add_node("ingest", ingest_to_vectorstore)
+    graph.add_node("build_persona", build_persona_node)
 
     # Add edges
     graph.add_edge(START, "discover")
@@ -256,7 +280,8 @@ def build_pipeline_graph() -> StateGraph:
         {"ingest": "ingest", "end": END},
     )
 
-    graph.add_edge("ingest", END)
+    graph.add_edge("ingest", "build_persona")
+    graph.add_edge("build_persona", END)
 
     return graph
 
@@ -294,6 +319,7 @@ def run_pipeline(
         "cleaned_docs": [],
         "clean_count": 0,
         "ingestion_stats": {},
+        "persona_built": False,
         "status": "starting",
         "errors": [],
     }

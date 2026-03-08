@@ -21,6 +21,7 @@ Configure in Claude Desktop claude_desktop_config.json:
 
 import json
 import logging
+from pathlib import Path
 from typing import Optional
 
 from mcp.server.fastmcp import FastMCP
@@ -29,6 +30,7 @@ from pydantic import BaseModel, Field
 from vector_store import VectorStoreManager
 from state_manager import PipelineState
 from pipeline import run_pipeline
+from config import config
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +327,150 @@ async def youtube_rag_delete_channel(params: ChannelInput) -> str:
         return json.dumps({
             "status": "error",
             "message": f"Deletion failed: {str(e)}",
+        })
+
+
+class GetAgentInput(BaseModel):
+    """Input for getting a channel agent."""
+
+    channel: str = Field(
+        ...,
+        description="YouTube channel URL or @handle (must already be indexed)",
+    )
+
+
+class ChatInput(BaseModel):
+    """Input for chatting with a channel agent."""
+
+    session_id: str = Field(
+        ...,
+        description="session_id returned by get_channel_agent",
+    )
+    message: str = Field(
+        ...,
+        description="Your message to the channel agent",
+    )
+
+
+@mcp.tool(
+    name="get_channel_agent",
+    annotations={
+        "title": "Get a YouTube Channel Agent",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": False,
+    },
+)
+async def get_channel_agent(params: GetAgentInput) -> str:
+    """
+    Get a conversational agent for an indexed YouTube channel.
+
+    The agent talks like the creator and answers questions based on their
+    video content. Returns a session_id to use with chat_with_channel_agent.
+
+    The channel must already be indexed (use youtube_rag_index_channel first).
+
+    Args:
+        params (GetAgentInput): Contains the channel URL or @handle.
+
+    Returns:
+        str: JSON with session_id, creator info, and usage instructions.
+    """
+    try:
+        state = PipelineState()
+        channel_info = state.get_channel_info(params.channel)
+
+        if not channel_info:
+            return json.dumps({
+                "status": "not_indexed",
+                "message": (
+                    f"Channel '{params.channel}' is not indexed yet. "
+                    "Use youtube_rag_index_channel to index it first."
+                ),
+            })
+
+        from channel_agent import ChannelAgent
+        from persona_builder import load_persona
+
+        agent = ChannelAgent(params.channel)
+        agent.ensure_session_file()
+
+        persona = load_persona(params.channel)
+
+        return json.dumps({
+            "status": "ready",
+            "session_id": agent.session_id,
+            "channel": params.channel,
+            "display_name": persona.get("display_name", params.channel) if persona else params.channel,
+            "topics": persona.get("topics", []) if persona else [],
+            "tone": persona.get("tone", "unknown") if persona else "unknown",
+            "videos_indexed": channel_info.get("total_videos_indexed", 0),
+            "session_messages": len(agent.messages),
+            "persona_available": persona is not None,
+            "instructions": (
+                f"Agent is ready. Use chat_with_channel_agent with "
+                f"session_id='{agent.session_id}' to start chatting."
+            ),
+        }, indent=2)
+
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to get agent: {str(e)}",
+        })
+
+
+@mcp.tool(
+    name="chat_with_channel_agent",
+    annotations={
+        "title": "Chat with a YouTube Channel Agent",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": False,
+    },
+)
+async def chat_with_channel_agent(params: ChatInput) -> str:
+    """
+    Send a message to a YouTube channel agent and get a response in the creator's voice.
+
+    The agent searches the channel's indexed video transcripts to answer your
+    question, responding as the creator would.
+
+    Call get_channel_agent first to obtain a session_id.
+
+    Args:
+        params (ChatInput): Contains session_id and the message to send.
+
+    Returns:
+        str: The agent's response in the creator's voice.
+    """
+    try:
+        # Resolve session_id → channel_input via the session file
+        session_path = Path(config.sessions_dir) / f"{params.session_id}.json"
+        if not session_path.exists():
+            return json.dumps({
+                "status": "session_not_found",
+                "message": (
+                    f"No session found for session_id='{params.session_id}'. "
+                    "Call get_channel_agent first."
+                ),
+            })
+
+        session_data = json.loads(session_path.read_text())
+        channel_input = session_data.get("channel_input", params.session_id)
+
+        from channel_agent import ChannelAgent
+
+        agent = ChannelAgent(channel_input)
+        response = agent.chat(params.message)
+        return response
+
+    except Exception as e:
+        return json.dumps({
+            "status": "error",
+            "message": f"Chat failed: {str(e)}",
         })
 
 
