@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "youtube_rag": {
+      "command": "python",
+      "args": ["-m", "src.mcp_server"],
+      "cwd": "/REPLACE/WITH/YOUR/PATH/TO/youtube-rag-pipeline",
+      "env": {
+        "CHROMA_PERSIST_DIR": "./data/chroma_db",
+        "EMBEDDING_MODEL": "all-MiniLM-L6-v2"
+      }
+    }
+  }
+}
