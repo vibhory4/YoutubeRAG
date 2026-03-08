@@ -1,7 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(ls -laR \"c:\\\\Users\\\\vibhu\\\\Downloads\\\\YoutubeRAG\\\\data\"\" 2>/dev/null || echo \"data/ directory does not exist \")"
-    ]
-  }
-}
