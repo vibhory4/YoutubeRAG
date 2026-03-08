@@ -195,8 +195,22 @@ class VectorStoreManager:
         """List all channel collections with stats."""
         collections = self.client.list_collections()
         result = []
-        for col_name in collections:
-            col = self.client.get_collection(col_name, embedding_function=self.embedding_fn)
+        for collection_item in collections:
+            # ChromaDB versions differ: list_collections may return names or collection objects.
+            if isinstance(collection_item, str):
+                col_name = collection_item
+                col = self.client.get_collection(
+                    name=col_name,
+                    embedding_function=self.embedding_fn,
+                )
+            else:
+                col_name = getattr(collection_item, "name", None)
+                if not col_name:
+                    continue
+                col = self.client.get_collection(
+                    name=col_name,
+                    embedding_function=self.embedding_fn,
+                )
             meta = col.metadata or {}
             result.append({
                 "name": col_name,

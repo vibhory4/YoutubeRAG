@@ -2,14 +2,18 @@
   "channels": {
     "https://www.youtube.com/@marketsbyzerodha": {
       "added_at": "2026-03-08T19:00:40.393313",
-      "last_checked": "2026-03-08T19:00:40.394006",
+      "last_checked": "2026-03-08T19:17:43.066452",
       "indexed_video_ids": [
-        "uKd_nKj1Xcg"
+        "3EZtThvDtsw",
+        "uKd_nKj1Xcg",
+        "YvqQIK3Yx2Q",
+        "v-YMPdBtk8Q",
+        "PWXLksW49UU"
       ],
       "total_videos_found": 0,
-      "total_videos_indexed": 1,
+      "total_videos_indexed": 5,
       "total_videos_failed": 0
     }
   },
-  "last_updated": "2026-03-08T19:00:40.394011"
+  "last_updated": "2026-03-08T19:17:43.066463"
 }
