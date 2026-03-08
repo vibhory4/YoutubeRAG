@@ -32,3 +32,9 @@ logs/
 
 # Claude Code local settings (machine-specific)
 .claude/
+
+# Test & coverage artifacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/

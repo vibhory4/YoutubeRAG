@@ -49,3 +49,8 @@ python main.py mcp
 - Flat module layout — all `.py` files at repo root. Imports are `from module import ...`.
 - Incremental indexing: already-processed video IDs are filtered before fetching. ChromaDB upserts with deterministic chunk IDs (`{video_id}_chunk_{i:04d}`) make re-runs idempotent.
 - Transcript availability varies by video; missing transcripts are non-fatal.
+
+
+##Always
+- Always use context7 to get better context
+- Always tell me what next 2 things i should build like a next feature suggestor in a next_feature.md
