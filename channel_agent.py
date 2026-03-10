@@ -49,6 +49,7 @@ class ChannelAgent:
         self.store = VectorStoreManager()
         self.client = OpenAI()
         self.messages: list[dict] = self._load_session()
+        self.on_tool_call = None  # Optional[Callable[[str, str], None]] — (query, result)
 
     # ──────────────────────────────────────────
     # Session persistence
@@ -202,6 +203,8 @@ When answering:
                     args = json.loads(tc.function.arguments)
                     logger.debug(f"[AGENT] search_videos('{args['query']}')")
                     result = self._search_videos(args["query"])
+                    if self.on_tool_call:
+                        self.on_tool_call(args["query"], result)
                     loop_messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
