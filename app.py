@@ -9,25 +9,34 @@ from persona_builder import load_persona
 from state_manager import PipelineState
 
 
-def _build_channel_list(channels: list[str]) -> str:
-    lines = ["**Welcome to YouTube RAG!** Here are your indexed channels:\n"]
-    for i, ch in enumerate(channels, 1):
+async def _send_channel_gallery(channels: list[str]) -> None:
+    await cl.Message(content="## Welcome to YouTube RAG\nSelect a channel to start chatting:").send()
+    for ch in channels:
         persona = load_persona(ch)
         if persona:
             name = persona.get("display_name", ch)
             topics = ", ".join(persona.get("topics", [])[:3])
             tone = persona.get("tone", "")
-            lines.append(f"**{i}.** {name} — {topics} *(tone: {tone})*")
+            card_text = f"### {name}\n**Topics:** {topics}  \n**Tone:** {tone}"
         else:
-            lines.append(f"**{i}.** {ch}")
-    lines.append("\nType a **number** to start chatting.")
-    return "\n".join(lines)
+            name = ch
+            card_text = f"### {ch}"
+
+        actions = [
+            cl.Action(
+                name="select_channel",
+                payload={"channel": ch},
+                label="Chat →",
+            )
+        ]
+        await cl.Message(content=card_text, actions=actions).send()
 
 
 @cl.on_chat_start
 async def start():
     channels = PipelineState().get_tracked_channels()
     cl.user_session.set("channels", channels)
+    cl.user_session.set("state", "selecting")
 
     if not channels:
         await cl.Message(
@@ -39,51 +48,12 @@ async def start():
         cl.user_session.set("state", "no_channels")
         return
 
-    await cl.Message(content=_build_channel_list(channels)).send()
-    cl.user_session.set("state", "selecting")
+    await _send_channel_gallery(channels)
 
 
-@cl.on_message
-async def handle_message(message: cl.Message):
-    state = cl.user_session.get("state")
-
-    if state == "no_channels":
-        await cl.Message(
-            content="Please index a channel first:\n```\npython main.py index <youtube_url>\n```"
-        ).send()
-        return
-
-    if state == "selecting":
-        await _handle_selection(message)
-        return
-
-    if state == "chatting":
-        await _handle_chat(message)
-        return
-
-
-async def _handle_selection(message: cl.Message):
-    channels = cl.user_session.get("channels", [])
-    text = message.content.strip()
-
-    channel = None
-    if text.isdigit():
-        idx = int(text) - 1
-        if 0 <= idx < len(channels):
-            channel = channels[idx]
-    else:
-        text_lower = text.lower().lstrip("@")
-        for ch in channels:
-            if text_lower in ch.lower():
-                channel = ch
-                break
-
-    if channel is None:
-        await cl.Message(
-            content="Couldn't find that channel. Please type a number from the list."
-        ).send()
-        return
-
+@cl.action_callback("select_channel")
+async def on_channel_selected(action: cl.Action):
+    channel = action.payload["channel"]
     agent = ChannelAgent(channel)
     cl.user_session.set("agent", agent)
     cl.user_session.set("state", "chatting")
@@ -92,17 +62,48 @@ async def _handle_selection(message: cl.Message):
     if persona:
         name = persona.get("display_name", channel)
         summary = persona.get("persona_summary", "")
-        topics = ", ".join(persona.get("topics", [])[:5])
-        confirm = (
-            f"**Now chatting with {name}**\n\n"
-            f"{summary}\n\n"
-            f"*Topics: {topics}*\n\n"
-            "Ask me anything!"
-        )
+        topics = persona.get("topics", [])
     else:
-        confirm = f"**Now chatting with {channel}**\n\nAsk me anything!"
+        name = channel
+        summary = ""
+        topics = []
 
-    await cl.Message(content=confirm).send()
+    starters = [
+        cl.Action(
+            name="starter_q",
+            payload={"question": f"Tell me about {t}"},
+            label=f"Tell me about {t}",
+        )
+        for t in topics[:3]
+    ]
+
+    confirm = f"**Now chatting with {name}**\n\n{summary}"
+    if starters:
+        confirm += "\n\n*Click a question below or type your own:*"
+
+    await cl.Message(content=confirm, actions=starters).send()
+    await action.remove()
+
+
+@cl.action_callback("starter_q")
+async def on_starter_question(action: cl.Action):
+    await action.remove()
+    fake_msg = cl.Message(content=action.payload["question"], author="User")
+    await _handle_chat(fake_msg)
+
+
+@cl.on_message
+async def handle_message(message: cl.Message):
+    state = cl.user_session.get("state")
+
+    if state in ("no_channels", "selecting"):
+        await cl.Message(
+            content="Please select a channel by clicking **Chat →** on one of the cards above."
+        ).send()
+        return
+
+    if state == "chatting":
+        await _handle_chat(message)
 
 
 async def _handle_chat(message: cl.Message):
