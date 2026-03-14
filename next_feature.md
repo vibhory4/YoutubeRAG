@@ -1,9 +1,9 @@
 # Next Feature Suggestions
 
-1. First-Run Chat Readiness Guardrail
-- Add `python main.py bootstrap @channel --limit 3` that runs index + persona + state setup in one command and confirms the channel appears in Chainlit.
-- In `app.py`, replace "No channels indexed yet" with a one-click action that triggers indexing for a pasted channel URL/handle.
+1. Bootstrap + In-App Indexing Flow
+- Add `python main.py bootstrap @channel --limit N` that runs index + persona + session readiness in one command and prints post-check stats.
+- In `app.py`, when no channels exist, use `AskUserMessage` to capture a channel handle and trigger indexing from inside Chainlit (with progress updates).
 
-2. Source-Cited Chat Answers in Chainlit
-- Make `ChannelAgent` append compact source citations (`video title + URL`) for each answer so users can verify claims quickly.
-- Expose the exact retrieval queries/chunk count in a cleaner UI step (keep current tool debug, but add a user-facing citation block under each response).
+2. Structured Grounded Answer Contract
+- Force a strict response template in `ChannelAgent`: `Answer`, `Evidence`, `Sources`, `Confidence` for every factual query.
+- Add an automated eval command (`main.py eval-grounding @channel`) that checks citation presence + claim/source overlap on sampled prompts.

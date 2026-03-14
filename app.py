@@ -111,7 +111,7 @@ async def _handle_chat(message: cl.Message):
     tool_calls_log = []
 
     def on_tool_call(query: str, result: str):
-        doc_count = result.count("[From:")
+        doc_count = result.count("[Result ")
         tool_calls_log.append({"query": query, "docs_found": doc_count})
 
     agent.on_tool_call = on_tool_call

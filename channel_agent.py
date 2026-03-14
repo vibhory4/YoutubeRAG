@@ -18,6 +18,7 @@ from openai import OpenAI
 
 from config import config
 from persona_builder import load_persona
+from state_manager import PipelineState
 from vector_store import VectorStoreManager
 
 logger = logging.getLogger(__name__)
@@ -123,10 +124,13 @@ Style: {p.get("style", "")}
 
 When answering:
 - Search your videos when you need specific information to answer accurately
+- For any factual claim, ground it in retrieved video context
 - Respond in first person, in your natural voice
 - Reference your videos naturally ("In my video about...", "I talked about this when...", "I covered this in...")
 - Stay in character — match your tone and style throughout
-- If something isn't covered in your videos, say so honestly rather than making things up"""
+- If something isn't covered in your videos, say so honestly rather than making things up
+- Never give vague inventory answers. Use get_channel_stats for counts.
+- End factual answers with a short "Sources" list including video title + URL when available"""
 
     # ──────────────────────────────────────────
     # RAG tool
@@ -145,11 +149,36 @@ When answering:
             return "No relevant content found in your indexed videos for this query."
 
         parts = []
-        for doc, meta in zip(docs, metas):
+        for i, (doc, meta) in enumerate(zip(docs, metas), start=1):
             title = meta.get("title", "Unknown video")
-            parts.append(f"[From: {title}]\n{doc}")
+            url = meta.get("video_url", "")
+            chunk_index = meta.get("chunk_index", 0)
+            parts.append(
+                f"[Result {i}]\n"
+                f"[From: {title}]\n"
+                f"Title: {title}\n"
+                f"URL: {url}\n"
+                f"Chunk: {chunk_index}\n"
+                f"Excerpt:\n{doc}"
+            )
 
         return "\n\n---\n\n".join(parts)
+
+    def _get_channel_stats(self) -> str:
+        """Return concrete inventory stats for the current channel."""
+        state = PipelineState()
+        state_info = state.get_channel_info(self.channel_input) or {}
+        vs_stats = self.store.get_stats(self.channel_input)
+
+        payload = {
+            "channel": self.channel_input,
+            "videos_indexed": state_info.get("total_videos_indexed", vs_stats.get("total_videos", 0)),
+            "transcript_videos_in_vector_store": vs_stats.get("total_videos", 0),
+            "chunks_indexed": vs_stats.get("total_chunks", 0),
+            "known_video_ids": vs_stats.get("video_ids", []),
+            "last_checked": state_info.get("last_checked"),
+        }
+        return json.dumps(payload, indent=2)
 
     # ──────────────────────────────────────────
     # Chat
@@ -159,27 +188,42 @@ When answering:
         """Send a message and get a response in the creator's voice."""
         self.messages.append({"role": "user", "content": user_message})
 
-        tools = [{
-            "type": "function",
-            "function": {
-                "name": "search_videos",
-                "description": (
-                    "Search your indexed video transcripts for relevant content. "
-                    "Call this when you need specific facts, quotes, or context "
-                    "from your videos to answer the question."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "The search query to find relevant transcript content",
-                        }
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "search_videos",
+                    "description": (
+                        "Search indexed video transcripts for grounded evidence. "
+                        "Use for factual answers, recommendations, and recap questions."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {
+                                "type": "string",
+                                "description": "Search query for transcript retrieval",
+                            }
+                        },
+                        "required": ["query"],
                     },
-                    "required": ["query"],
                 },
             },
-        }]
+            {
+                "type": "function",
+                "function": {
+                    "name": "get_channel_stats",
+                    "description": (
+                        "Get exact indexed inventory counts for this channel "
+                        "(videos, transcripts in vector store, chunks)."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
+                    },
+                },
+            },
+        ]
 
         # Build the full context: system + history
         loop_messages = [
@@ -200,11 +244,21 @@ When answering:
                 # Execute each tool call and feed results back
                 loop_messages.append(msg)
                 for tc in msg.tool_calls:
-                    args = json.loads(tc.function.arguments)
-                    logger.debug(f"[AGENT] search_videos('{args['query']}')")
-                    result = self._search_videos(args["query"])
-                    if self.on_tool_call:
-                        self.on_tool_call(args["query"], result)
+                    args = json.loads(tc.function.arguments or "{}")
+                    tool_name = getattr(tc.function, "name", "search_videos")
+
+                    if tool_name == "get_channel_stats":
+                        logger.debug("[AGENT] get_channel_stats()")
+                        result = self._get_channel_stats()
+                        if self.on_tool_call:
+                            self.on_tool_call("__channel_stats__", result)
+                    else:
+                        query = args.get("query", "")
+                        logger.debug(f"[AGENT] search_videos('{query}')")
+                        result = self._search_videos(query)
+                        if self.on_tool_call:
+                            self.on_tool_call(query, result)
+
                     loop_messages.append({
                         "role": "tool",
                         "tool_call_id": tc.id,
