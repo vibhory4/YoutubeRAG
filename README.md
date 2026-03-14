@@ -70,14 +70,54 @@ source .venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 ```
 
-### 2. Configure (Optional)
+### 2. Configure
 
 ```bash
 cp .env.example .env
-# Edit .env to customize paths, models, intervals
+# Add OPENAI_API_KEY if you want persona generation and chat
+# Edit other values only if you need custom paths, models, or intervals
 ```
 
-Default config works out of the box - no API keys needed!
+You can index and query without an API key. `OPENAI_API_KEY` is required for persona generation and chat features.
+
+## How To Run
+
+Run everything from the repository root after activating `.venv`.
+
+### CLI
+
+```bash
+# Show available commands
+python main.py --help
+
+# Check the project is wired correctly
+python main.py status
+
+# Index a channel
+python main.py index "https://www.youtube.com/@marketsbyzerodha" --limit 5
+
+# Query an indexed channel
+python main.py query "@marketsbyzerodha" "What is SIP and how does it work?" -n 3
+
+# List tracked channels
+python main.py channels
+```
+
+### Chainlit Chat App
+
+```bash
+chainlit run app.py
+```
+
+Then open the local URL shown by Chainlit in your terminal. The app lets you pick an indexed channel and chat with its persona. If no channels are indexed yet, index one first with `python main.py index ...`.
+
+### MCP Server
+
+```bash
+python main.py mcp
+```
+
+Start this when you want to connect the project to an MCP client such as Claude Desktop.
 
 ## Usage
 
@@ -113,6 +153,7 @@ python main.py scheduler --interval 30
 ```bash
 python main.py status     # Pipeline overview
 python main.py channels   # List tracked channels
+python main.py --help     # Full CLI help
 ```
 
 ## Claude Integration (MCP)

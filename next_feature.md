@@ -1,9 +1,9 @@
 # Next Feature Suggestions
 
-1. Bootstrap + In-App Indexing Flow
-- Add `python main.py bootstrap @channel --limit N` that runs index + persona + session readiness in one command and prints post-check stats.
-- In `app.py`, when no channels exist, use `AskUserMessage` to capture a channel handle and trigger indexing from inside Chainlit (with progress updates).
+1. Bootstrap + First-Run UX
+- Add `python main.py bootstrap @channel --limit N` to run indexing, persona creation, and a final health check in one command.
+- In `app.py`, let a user submit a channel handle from the empty state and start indexing without leaving the UI.
 
-2. Structured Grounded Answer Contract
-- Force a strict response template in `ChannelAgent`: `Answer`, `Evidence`, `Sources`, `Confidence` for every factual query.
-- Add an automated eval command (`main.py eval-grounding @channel`) that checks citation presence + claim/source overlap on sampled prompts.
+2. Retrieval Quality Evaluation
+- Add `python main.py eval @channel` to score retrieval relevance, empty-result rate, and citation coverage on a saved prompt set.
+- Store eval history in `data/evals/` so you can compare retrieval quality after chunking or prompt changes.

@@ -55,3 +55,4 @@ python main.py mcp
 - Always use context7 to get better context
 - Always tell me what next 2 things i should build like a next feature suggestor in a next_feature.md
 - Write tests to confirm, think around all edge cases, and do all sorts of tests, and make sure code coverage is 100%
+- Always update the Readme.md 
