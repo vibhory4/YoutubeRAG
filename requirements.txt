@@ -9,8 +9,10 @@ chromadb>=0.5.0
 sentence-transformers>=3.0.0
 
 # YouTube
-scrapetube>=2.5.0
-youtube-transcript-api>=1.0.0
+yt-dlp>=2024.11.0
+
+# Google Gemini (transcript extraction)
+google-genai>=1.0.0
 
 # Document Processing (Docling)
 docling-core>=2.0.0

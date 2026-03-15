@@ -38,6 +38,9 @@ class Config:
     # Logging
     log_level: str = "INFO"
 
+    # Google Gemini (transcript extraction)
+    gemini_api_key: str = ""
+
     def __post_init__(self):
         """Override defaults with environment variables if present."""
         self.chroma_persist_dir = os.getenv("CHROMA_PERSIST_DIR", self.chroma_persist_dir)
@@ -54,6 +57,7 @@ class Config:
         self.mcp_host = os.getenv("MCP_SERVER_HOST", self.mcp_host)
         self.mcp_port = int(os.getenv("MCP_SERVER_PORT", self.mcp_port))
         self.log_level = os.getenv("LOG_LEVEL", self.log_level)
+        self.gemini_api_key = os.getenv("GEMINI_API_KEY", self.gemini_api_key)
 
         # Ensure directories exist
         Path(self.chroma_persist_dir).mkdir(parents=True, exist_ok=True)
